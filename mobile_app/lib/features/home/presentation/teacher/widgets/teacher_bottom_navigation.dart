@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 class TeacherBottomNavigation extends StatelessWidget {
@@ -10,37 +11,40 @@ class TeacherBottomNavigation extends StatelessWidget {
     required this.onTap,
   });
 
-  static const Color primaryColor = Color(0xFF1955EC);
+  static const Color primaryColor = Color(0xFF2563EB);
 
   @override
   Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: currentIndex,
-      onTap: onTap,
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: primaryColor,
-      unselectedItemColor: Colors.grey,
+    return NavigationBar(
+      selectedIndex: currentIndex,
+      onDestinationSelected: onTap,
       backgroundColor: Colors.white,
-      elevation: 10,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.directions_bus),
+      indicatorColor: primaryColor.withValues(alpha: 0.12),
+      elevation: 8,
+      destinations: const [
+        NavigationDestination(
+          icon: Icon(Icons.directions_bus_outlined),
+          selectedIcon: Icon(Icons.directions_bus),
           label: 'Chuyến xe',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.map),
+        NavigationDestination(
+          icon: Icon(Icons.map_outlined),
+          selectedIcon: Icon(Icons.map),
           label: 'Lộ trình',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.qr_code_scanner),
+        NavigationDestination(
+          icon: Icon(Icons.fact_check_outlined),
+          selectedIcon: Icon(Icons.fact_check),
           label: 'Điểm danh',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.warning_amber_rounded),
+        NavigationDestination(
+          icon: Icon(Icons.warning_amber_outlined),
+          selectedIcon: Icon(Icons.warning_amber),
           label: 'SOS',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person),
+        NavigationDestination(
+          icon: Icon(Icons.person_outline),
+          selectedIcon: Icon(Icons.person),
           label: 'Hồ sơ',
         ),
       ],

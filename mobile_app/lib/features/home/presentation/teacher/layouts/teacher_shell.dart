@@ -1,15 +1,16 @@
+
 import 'package:flutter/material.dart';
 
-import '../../../../authentication/domain/entities/app_user.dart';
+import 'package:mobile_app/features/authentication/domain/entities/app_user.dart';
 
+import '../pages/teacher_home_page.dart';
 import '../widgets/teacher_bottom_navigation.dart';
 
-// Các màn hình chức năng
-import '../../../trips/presentation/pages/teacher_trips_page.dart';
-import '../../../trips/presentation/pages/teacher_route_page.dart';
-import '../../../attendance/presentation/pages/attendance_page.dart';
-import '../../../alerts/presentation/pages/teacher_alerts_page.dart';
-import '../../../authentication/presentation/pages/teacher_profile_page.dart';
+// TODO: Điều chỉnh các đường dẫn này cho khớp với file thực tế trong project.
+import 'package:mobile_app/features/trips/presentation/pages/teacher/teacher_route_page.dart';
+import 'package:mobile_app/features/attendance/presentation/pages/teacher/teacher_attendance_page.dart';
+import 'package:mobile_app/features/alerts/presentation/pages/teacher/teacher_alerts_page.dart';
+import 'package:mobile_app/features/profile/presentation/pages/teacher/teacher_profile_page.dart';
 
 class TeacherShell extends StatefulWidget {
   final AppUser user;
@@ -33,12 +34,20 @@ class _TeacherShellState extends State<TeacherShell> {
     super.initState();
 
     _pages = [
-      TeacherTripsPage(user: widget.user),
+      TeacherHomePage(user: widget.user),
       const TeacherRoutePage(),
-      const AttendancePage(),
+      const TeacherAttendancePage(),
       const TeacherAlertsPage(),
       TeacherProfilePage(user: widget.user),
     ];
+  }
+
+  void _onTabSelected(int index) {
+    if (index < 0 || index >= _pages.length) return;
+
+    setState(() {
+      _currentIndex = index;
+    });
   }
 
   @override
@@ -48,14 +57,9 @@ class _TeacherShellState extends State<TeacherShell> {
         index: _currentIndex,
         children: _pages,
       ),
-
       bottomNavigationBar: TeacherBottomNavigation(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onTap: _onTabSelected,
       ),
     );
   }
