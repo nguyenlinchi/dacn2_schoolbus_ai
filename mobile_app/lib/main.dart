@@ -1,25 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
+import 'core/network/supabase_client.dart'; // Điều chỉnh lại đường dẫn import nếu cần thiết (ví dụ: package:...)
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  const supabaseUrl = 'https://zimlasyxfrgtsmftadjy.supabase.co';
-  const supabaseKey = 'sb_publishable_pCeypEOyk1lPUwVrRfGSdA_wk-3gJ5S';
-
-  if (supabaseUrl.isEmpty || supabaseKey.isEmpty) {
-    throw Exception(
-      'Thiếu SUPABASE_URL hoặc SUPABASE_ANON_KEY',
-    );
-  }
-
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseKey,
-  );
+  // Khởi tạo Supabase thông qua SupabaseService (đã tích hợp sẵn kiểm tra rỗng và --dart-define)
+  await SupabaseService.init();
 
   runApp(
     const ProviderScope(

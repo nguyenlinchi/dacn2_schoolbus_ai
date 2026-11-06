@@ -1,5 +1,8 @@
+import '../../../../core/errors/failures.dart';
 import '../entities/app_user.dart';
 import '../repositories/auth_repository.dart';
+
+final _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
 class LoginUseCase {
   final AuthRepository repository;
@@ -10,17 +13,18 @@ class LoginUseCase {
     required String email,
     required String password,
   }) async {
-    if (email.trim().isEmpty) {
-      throw ArgumentError('Email không được để trống');
-    }
+    final cleanEmail = email.trim();
 
+    if (cleanEmail.isEmpty) {
+      throw const AuthFailure('Email không được để trống');
+    }
+    if (!_emailRegex.hasMatch(cleanEmail)) {
+      throw const AuthFailure('Email không hợp lệ');
+    }
     if (password.isEmpty) {
-      throw ArgumentError('Mật khẩu không được để trống');
+      throw const AuthFailure('Mật khẩu không được để trống');
     }
 
-    return repository.login(
-      email: email.trim(),
-      password: password,
-    );
+    return repository.login(email: cleanEmail, password: password);
   }
 }

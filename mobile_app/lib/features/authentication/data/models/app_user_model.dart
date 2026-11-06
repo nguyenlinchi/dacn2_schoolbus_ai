@@ -6,27 +6,29 @@ class AppUserModel extends AppUser {
     required super.email,
     required super.fullName,
     required super.role,
+    super.phone,
+    super.avatarUrl,
   });
 
-  factory AppUserModel.fromMap(
-    Map<String, dynamic> map,
-  ) {
-    final roleString = map['role'] as String;
-
-    final role = switch (roleString) {
-      'ADMIN' => UserRole.admin,
-      'DRIVER' => UserRole.driver,
-      'PARENT' => UserRole.parent,
-      _ => throw FormatException(
-          'Role không hợp lệ: $roleString',
-        ),
-    };
-
+  /// [map] là một dòng của bảng public.users
+  factory AppUserModel.fromMap(Map<String, dynamic> map) {
     return AppUserModel(
-      id: map['id'] as String,
+      id: map['user_id'] as String,
       email: map['email'] as String? ?? '',
-      fullName: map['full_name'] as String,
-      role: role,
+      fullName: map['full_name'] as String? ?? '',
+      role: _parseRole(map['role'] as String?),
+      phone: map['phone'] as String?,
+      avatarUrl: map['avatar_url'] as String?,
     );
+  }
+
+  static UserRole _parseRole(String? value) {
+    return switch ((value ?? '').toUpperCase()) {
+      'ADMIN' => UserRole.admin,
+      'SCHOOL_MANAGER' => UserRole.schoolManager,
+      'TEACHER' => UserRole.teacher,
+      'DRIVER' => UserRole.driver,
+      _ => UserRole.parent, // giá trị lạ -> quyền thấp nhất
+    };
   }
 }

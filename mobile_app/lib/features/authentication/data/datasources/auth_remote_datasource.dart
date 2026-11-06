@@ -1,9 +1,17 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../../core/errors/failures.dart';
 
 class AuthRemoteDataSource {
   final SupabaseClient client;
 
   AuthRemoteDataSource(this.client);
+
+  static const _usersTable = 'users';
+  static const _profileColumns =
+      'user_id, username, full_name, email, phone, avatar_url, role, is_active';
 
   // LOGIN
   Future<User> login({
@@ -16,15 +24,17 @@ class AuthRemoteDataSource {
     );
 
     final user = response.user;
-
     if (user == null) {
-      throw Exception('Không thể đăng nhập');
+      throw const AuthFailure('Không thể đăng nhập');
     }
-
     return user;
   }
 
   // REGISTER
+  // Chỉ tạo tài khoản trong Supabase Auth. Dòng trong public.users và
+  // public.parents do trigger handle_new_user (file 005_auth_trigger.sql) tạo,
+  // vì RLS không cho app tự INSERT vào bảng users.
+  // Trả về true nếu đã đăng nhập luôn (tắt xác nhận email).
   Future<bool> register({
     required String fullName,
     required String email,
@@ -33,43 +43,43 @@ class AuthRemoteDataSource {
     final response = await client.auth.signUp(
       email: email,
       password: password,
-      data: {
-        'full_name': fullName,
-      },
+      data: {'full_name': fullName},
     );
 
-    if (response.user == null) {
-      throw Exception('Không thể tạo tài khoản');
+    final user = response.user;
+    if (user == null) {
+      throw const AuthFailure('Không thể tạo tài khoản');
     }
 
-    // true nếu đã có session
-    // false nếu cần xác nhận email
+    // Khi bật xác nhận email, email đã tồn tại sẽ KHÔNG báo lỗi mà trả về
+    // user có danh sách identities rỗng.
+    if (user.identities != null && user.identities!.isEmpty) {
+      throw const AuthFailure('Email này đã được đăng ký');
+    }
+
     return response.session != null;
   }
 
-  // GET CURRENT USER PROFILE
+  // LẤY HỒ SƠ từ bảng public.users (RLS: chỉ đọc được dòng của chính mình)
   Future<Map<String, dynamic>?> getCurrentProfile() async {
     final user = client.auth.currentUser;
-
-    if (user == null) {
-      return null;
-    }
+    if (user == null) return null;
 
     final result = await client
-        .from('profiles')
-        .select()
-        .eq('id', user.id)
+        .from(_usersTable)
+        .select(_profileColumns)
+        .eq('user_id', user.id)
         .maybeSingle();
 
     if (result == null) {
-      throw Exception(
-        'Không tìm thấy thông tin phân quyền của tài khoản',
+      throw const AuthFailure(
+        'Tài khoản chưa có hồ sơ trong hệ thống. Vui lòng liên hệ nhà trường.',
       );
     }
 
     return {
       ...result,
-      'email': user.email ?? '',
+      'email': user.email ?? result['email'] ?? '',
     };
   }
 

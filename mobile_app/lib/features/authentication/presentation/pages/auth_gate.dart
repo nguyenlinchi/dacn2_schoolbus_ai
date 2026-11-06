@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +5,10 @@ import '../providers/auth_providers.dart';
 import 'package:mobile_app/features/authentication/presentation/pages/admin_home_page.dart';
 import 'package:mobile_app/features/authentication/presentation/pages/driver_home_page.dart';
 import 'package:mobile_app/features/authentication/presentation/pages/parent_home_page.dart';
+import 'package:mobile_app/features/authentication/presentation/pages/teacher_home_page.dart';
+
+// Nếu bạn đã có file trang home cho school_manager hoặc teacher, hãy import vào đây.
+// Tạm thời nếu chưa có, bạn có thể trỏ tạm về trang admin hoặc tạo file tương ứng.
 import 'login_page.dart';
 import '../../domain/entities/app_user.dart';
 
@@ -54,6 +57,13 @@ class AuthGate extends ConsumerWidget {
         switch (user.role) {
           case UserRole.admin:
             return AdminHomePage(user: user);
+
+          case UserRole.schoolManager:
+            // Quản lý trường học (có thể dùng chung AdminHomePage hoặc tạo trang riêng)
+            return AdminHomePage(user: user);
+
+          case UserRole.teacher:
+            return TeacherHomePage(user: user);
 
           case UserRole.driver:
             return DriverHomePage(user: user);
