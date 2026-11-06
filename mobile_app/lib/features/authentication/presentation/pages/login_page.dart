@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,6 +26,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> login() async {
+    if (isLoading) return;
+
     final email = emailController.text.trim();
     final password = passwordController.text;
 
@@ -46,7 +47,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     });
 
     try {
-      // 1. Thực hiện đăng nhập Supabase
+      // 1. Thực hiện đăng nhập qua UseCase
       await ref.read(loginUseCaseProvider)(
         email: email,
         password: password,
@@ -54,34 +55,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
       if (!mounted) return;
 
-      // 2. Làm mới thông tin người dùng
+      // 2. Ép buộc làm mới và fetch lại dữ liệu user ngay lập tức để AuthGate kích hoạt chuyển trang
       ref.invalidate(currentUserProvider);
-
-      // 3. Kiểm tra thông tin tài khoản
-      final user = await ref.read(currentUserProvider.future);
+      await ref.read(currentUserProvider.future);
 
       if (!mounted) return;
 
-      if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không tìm thấy thông tin tài khoản'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      // 4. Không tự Navigator đến HomePage.
-      // AuthGate sẽ tự động điều hướng theo user.role.
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đăng nhập thành công: ${user.role}'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
+      debugPrint('LOGIN SUCCESS & REFRESHED GATE');
     } catch (e) {
       if (!mounted) return;
 
@@ -118,9 +98,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   size: 76,
                   color: Colors.blue,
                 ),
-
                 const SizedBox(height: 16),
-
                 Text(
                   'SCHOOL BUS AI',
                   style: Theme.of(context)
@@ -130,31 +108,29 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         fontWeight: FontWeight.bold,
                       ),
                 ),
-
                 const SizedBox(height: 8),
-
                 const Text(
                   'Hệ thống điểm danh xe buýt trường học',
                   textAlign: TextAlign.center,
                 ),
-
                 const SizedBox(height: 36),
-
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     labelText: 'Email',
                     prefixIcon: Icon(Icons.email_outlined),
                     border: OutlineInputBorder(),
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
                 TextField(
                   controller: passwordController,
                   obscureText: hidePassword,
+                  onSubmitted: (_) {
+                    if (!isLoading) login();
+                  },
                   decoration: InputDecoration(
                     labelText: 'Mật khẩu',
                     prefixIcon: const Icon(Icons.lock_outline),
@@ -173,9 +149,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     border: const OutlineInputBorder(),
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -193,23 +167,22 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         : const Text('Đăng nhập'),
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text('Chưa có tài khoản?'),
-
                     TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const RegisterPage(),
-                          ),
-                        );
-                      },
+                      onPressed: isLoading
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RegisterPage(),
+                                ),
+                              );
+                            },
                       child: const Text('Đăng ký'),
                     ),
                   ],

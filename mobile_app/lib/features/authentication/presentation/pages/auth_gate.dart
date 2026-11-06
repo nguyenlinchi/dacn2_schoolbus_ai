@@ -21,7 +21,6 @@ class AuthGate extends ConsumerWidget {
     final userAsync = ref.watch(currentUserProvider);
 
     return userAsync.when(
-      // Đang kiểm tra tài khoản
       loading: () {
         return const Scaffold(
           body: Center(
@@ -29,8 +28,6 @@ class AuthGate extends ConsumerWidget {
           ),
         );
       },
-
-      // Có lỗi khi lấy thông tin tài khoản
       error: (error, stack) {
         return Scaffold(
           body: Center(
@@ -63,15 +60,13 @@ class AuthGate extends ConsumerWidget {
           ),
         );
       },
-
-      // Kiểm tra tài khoản và phân quyền
       data: (user) {
         // Chưa đăng nhập
         if (user == null) {
           return const LoginPage();
         }
 
-        // Đã đăng nhập: điều hướng theo role
+        // Đã đăng nhập: điều hướng theo phân quyền (role)
         switch (user.role) {
           case UserRole.admin:
             return AdminHomePage(user: user);
@@ -80,7 +75,7 @@ class AuthGate extends ConsumerWidget {
             return AdminHomePage(user: user);
 
           case UserRole.teacher:
-            return TeacherShell(user: user); // Phân quyền mở khung 5 tab của Giáo viên
+            return TeacherShell(user: user); // Mở khung 5 tab của Giáo viên
 
           case UserRole.driver:
             return DriverHomePage(user: user);
