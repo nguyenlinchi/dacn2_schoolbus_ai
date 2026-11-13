@@ -28,6 +28,10 @@ class ProfileRepositoryImpl implements ProfileRepository {
       _guard(() => remote.updateFullName(fullName));
 
   @override
+  Future<void> updatePhone(String? phone) =>
+      _guard(() => remote.updatePhone(phone));
+
+  @override
   Future<void> requestEmailChange(String newEmail) =>
       _guard(() => remote.requestEmailChange(newEmail));
 
@@ -85,7 +89,9 @@ class ProfileRepositoryImpl implements ProfileRepository {
         );
       }
       if (m.contains('chưa đăng nhập')) {
-        return const ProfileException('Phiên đăng nhập đã hết, hãy đăng nhập lại.');
+        return const ProfileException(
+          'Phiên đăng nhập đã hết, hãy đăng nhập lại.',
+        );
       }
       return ProfileException(e.message);
     }

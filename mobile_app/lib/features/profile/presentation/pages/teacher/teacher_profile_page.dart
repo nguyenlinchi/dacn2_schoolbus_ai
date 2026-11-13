@@ -13,6 +13,7 @@ import 'package:mobile_app/features/profile/presentation/providers/profile_provi
 import 'package:mobile_app/features/profile/presentation/providers/teacher_work_info_provider.dart';
 import 'package:mobile_app/features/profile/presentation/widgets/change_password_sheet.dart';
 import 'package:mobile_app/features/profile/presentation/widgets/edit_profile_sheet.dart';
+import 'package:mobile_app/features/trips/presentation/pages/teacher/teacher_trip_history_page.dart';
 
 enum _AvatarAction { camera, gallery, remove }
 
@@ -42,6 +43,7 @@ class _C {
   static const Color switchOff = Color(0xFF8FA2A1);
   static const Color cardShadow = Color(0x1E10224A);
 
+  /// Font của thiết kế. Nếu app chưa có font này thì Flutter tự dùng font mặc định.
   static const String font = 'Be Vietnam Pro';
 }
 
@@ -70,6 +72,8 @@ class TeacherProfilePage extends ConsumerStatefulWidget {
 class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
   static const double _avatarSize = 60;
   static const String _roleLabel = 'Bảo mẫu';
+
+  /// Hiển thị khi chưa có dữ liệu.
   static const String _empty = '—';
 
   final ImagePicker _picker = ImagePicker();
@@ -88,21 +92,27 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
       isLoggingOut = true;
     });
 
-    // Lấy sẵn MỌI thứ cần dùng TRƯỚC khi await (trang sẽ bị dispose sau signOut)
+    // Lấy sẵn MỌI thứ cần dùng TRƯỚC khi await.
+    // Sau signOut(), AuthGate rebuild và trang này bị dispose,
+    // nên sau đó không được dùng context / ref / setState của State này nữa.
     final navigator = Navigator.of(context, rootNavigator: true);
     final messenger = ScaffoldMessenger.of(context);
     final container = ProviderScope.containerOf(context, listen: false);
 
     try {
+      // 1. Đăng xuất khỏi Supabase (xóa session)
       await Supabase.instance.client.auth.signOut();
 
       debugPrint(
         'LOGOUT OK -> session = ${Supabase.instance.client.auth.currentSession}',
       );
 
+      // 2. Làm mới thông tin user bằng container (an toàn dù widget đã dispose)
       container.invalidate(currentUserProvider);
       container.invalidate(teacherWorkInfoProvider);
 
+      // 3. Thay toàn bộ stack bằng AuthGate mới -> hiện LoginPage.
+      //    Không gọi setState ở đây vì trang này sắp bị gỡ bỏ.
       navigator.pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AuthGate()),
         (route) => false,
@@ -115,6 +125,7 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
         ),
       );
 
+      // Chỉ trong nhánh lỗi (trang vẫn còn) mới setState, và phải kiểm tra mounted
       if (mounted) {
         setState(() {
           isLoggingOut = false;
@@ -205,6 +216,16 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
   }
 
   // =====================================================
+  // LỊCH SỬ ĐƯA ĐÓN
+  // =====================================================
+
+  void _openTripHistory() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const TeacherTripHistoryPage()),
+    );
+  }
+
+  // =====================================================
   // ẢNH ĐẠI DIỆN
   // =====================================================
 
@@ -272,6 +293,7 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
 
   Future<void> _pickAndUploadAvatar(ImageSource source) async {
     try {
+      // Tự thu nhỏ ảnh để tải lên nhanh và nhẹ
       final file = await _picker.pickImage(
         source: source,
         maxWidth: 512,
@@ -279,7 +301,7 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
         imageQuality: 80,
       );
 
-      if (file == null) return;
+      if (file == null) return; // người dùng huỷ
 
       if (mounted) setState(() => _isUploadingAvatar = true);
 
@@ -333,8 +355,8 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
   /// Tải lại hồ sơ, thông tin tài khoản và thông tin công việc.
   void _refreshProfile() {
     ref.invalidate(userProfileProvider);
-    ref.invalidate(currentUserProvider);
     ref.invalidate(teacherWorkInfoProvider);
+    ref.invalidate(currentUserProvider);
   }
 
   Future<void> _onPullToRefresh() async {
@@ -342,7 +364,7 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
     try {
       await ref.read(teacherWorkInfoProvider.future);
     } catch (_) {
-      // Lỗi đã hiển thị ở UI (thẻ đỏ), bỏ qua ở đây.
+      // Lỗi đã hiển thị ở thẻ đỏ trên màn hình, bỏ qua ở đây.
     }
   }
 
@@ -397,7 +419,8 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
     return (name == null || name.isEmpty) ? _empty : name;
   }
 
-  /// Trả về (chữ hiển thị, màu nền, màu chữ) cho hạn bằng lái tài xế.
+  /// Trả về (chữ hiển thị, màu nền, màu chữ) cho hạn bằng lái của tài xế:
+  /// xanh = còn hạn, vàng = sắp hết hạn (<= 30 ngày), đỏ = đã hết hạn, xám = chưa có.
   (String, Color, Color) _licenseBadge(DateTime? expiry) {
     if (expiry == null) {
       return ('Chưa cập nhật', _C.codeBadge, _C.codeText);
@@ -434,6 +457,7 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
     final workLoading = workAsync.isLoading && !workAsync.hasValue;
     final workError = workAsync.hasError && !workAsync.hasValue;
 
+    // Dữ liệu từ database nếu đã tải xong, nếu chưa thì dùng dữ liệu truyền vào
     final name = profile?.fullName ?? widget.user.fullName;
     final email = profile?.email ?? widget.user.email;
     final hasAvatar = profile?.hasAvatar ?? false;
@@ -451,6 +475,8 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
             child: Column(
               children: [
                 _buildHeader(context),
+
+                // Nội dung đè lên phần header 40px
                 Transform.translate(
                   offset: const Offset(0, -40),
                   child: Padding(
@@ -681,6 +707,8 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
                     : initials,
               ),
             ),
+
+            // Lớp phủ khi đang tải ảnh lên
             if (_isUploadingAvatar)
               Container(
                 width: _avatarSize,
@@ -700,6 +728,8 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
                   ),
                 ),
               ),
+
+            // Nút máy ảnh nhỏ ở góc
             Positioned(
               right: -3,
               bottom: -3,
@@ -827,7 +857,9 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
             showDivider: false,
             value: loading
                 ? valueText('')
-                : _buildPill(license.$1, license.$2, license.$3),
+                : (work == null
+                    ? valueText(_empty)
+                    : _buildPill(license.$1, license.$2, license.$3)),
           ),
         ],
       ),
@@ -884,7 +916,7 @@ class _TeacherProfilePageState extends ConsumerState<TeacherProfilePage> {
               _buildMenuRow(
                 icon: Icons.history,
                 label: 'Lịch sử đưa đón',
-                onTap: () => _showComingSoon('Lịch sử đưa đón'),
+                onTap: _openTripHistory,
               ),
               _buildMenuRow(
                 icon: Icons.report_gmailerrorred_outlined,

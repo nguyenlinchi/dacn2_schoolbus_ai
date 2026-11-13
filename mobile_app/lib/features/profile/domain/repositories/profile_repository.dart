@@ -19,4 +19,6 @@ abstract class ProfileRepository {
   Future<String> uploadAvatar(Uint8List bytes, String contentType);
 
   Future<void> removeAvatar();
+
+  Future<void> updatePhone(String? phone);
 }

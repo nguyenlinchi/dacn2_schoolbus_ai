@@ -97,4 +97,11 @@ class ProfileRemoteDataSource {
     await client.storage.from(avatarBucket).remove(['$uid/avatar']);
     await client.from('users').update({'avatar_url': null}).eq('user_id', uid);
   }
+  Future<void> updatePhone(String? phone) async {
+  final uid = client.auth.currentUser!.id;
+  await client
+      .from('users')
+      .update({'phone': phone})
+      .eq('user_id', uid);
+}
 }

@@ -12,9 +12,22 @@ import 'package:mobile_app/features/authentication/presentation/pages/parent_hom
 
 // Gọi TeacherShell thay vì TeacherHomePage trực tiếp
 import 'package:mobile_app/features/home/presentation/teacher/layouts/teacher_shell.dart';
+import 'package:mobile_app/features/chatbot/presentation/widgets/chatbot_fab.dart';
+
 
 class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
+
+  /// Đặt nút chatbot nổi lên trên màn hình chính của từng vai trò.
+  Widget _withChatbot(Widget page, String roleLabel) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        page,
+        ChatbotFab(userRole: roleLabel),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -67,22 +80,38 @@ class AuthGate extends ConsumerWidget {
         }
 
         // Đã đăng nhập: điều hướng theo phân quyền (role)
+        // switch (user.role) {
+        //   case UserRole.admin:
+        //     return AdminHomePage(user: user);
+
+        //   case UserRole.schoolManager:
+        //     return AdminHomePage(user: user);
+
+        //   case UserRole.teacher:
+        //     return TeacherShell(user: user); // Mở khung 5 tab của Giáo viên
+
+        //   case UserRole.driver:
+        //     return DriverHomePage(user: user);
+
+        //   case UserRole.parent:
+        //     return ParentHomePage(user: user);
+        // }
         switch (user.role) {
-          case UserRole.admin:
-            return AdminHomePage(user: user);
+  case UserRole.admin:
+    return _withChatbot(AdminHomePage(user: user), 'quản trị viên');
 
-          case UserRole.schoolManager:
-            return AdminHomePage(user: user);
+  case UserRole.schoolManager:
+    return _withChatbot(AdminHomePage(user: user), 'quản lý nhà trường');
 
-          case UserRole.teacher:
-            return TeacherShell(user: user); // Mở khung 5 tab của Giáo viên
+  case UserRole.teacher:
+    return _withChatbot(TeacherShell(user: user), 'giáo viên');
 
-          case UserRole.driver:
-            return DriverHomePage(user: user);
+  case UserRole.driver:
+    return _withChatbot(DriverHomePage(user: user), 'tài xế');
 
-          case UserRole.parent:
-            return ParentHomePage(user: user);
-        }
+  case UserRole.parent:
+    return _withChatbot(ParentHomePage(user: user), 'phụ huynh');
+}
       },
     );
   }

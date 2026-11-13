@@ -5,6 +5,7 @@ class UserProfileModel extends UserProfile {
     required super.userId,
     required super.fullName,
     required super.email,
+    super.phone,
     super.avatarUrl,
   });
 
@@ -13,6 +14,7 @@ class UserProfileModel extends UserProfile {
       userId: json['user_id'] as String,
       fullName: json['full_name'] as String? ?? '',
       email: json['email'] as String? ?? '',
+      phone: json['phone'] as String?,
       avatarUrl: json['avatar_url'] as String?,
     );
   }
