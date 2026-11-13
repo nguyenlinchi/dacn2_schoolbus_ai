@@ -15,6 +15,31 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+
+// ==============================================================================
+// ÉP COMPILE SDK 36, JAVA 17 VÀ KOTLIN JVM 17 CHO CÁC LIBRARY (plugin của Flutter)
+// PHẢI ĐẶT TRƯỚC evaluationDependsOn
+// ==============================================================================
+subprojects {
+    afterEvaluate {
+        if (plugins.hasPlugin("com.android.library")) {
+            extensions.findByType(com.android.build.gradle.BaseExtension::class.java)?.apply {
+                compileSdkVersion(36)
+                compileOptions {
+                    sourceCompatibility = JavaVersion.VERSION_17
+                    targetCompatibility = JavaVersion.VERSION_17
+                }
+            }
+        }
+
+        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+            compilerOptions {
+                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+            }
+        }
+    }
+}
+
 subprojects {
     project.evaluationDependsOn(":app")
 }
