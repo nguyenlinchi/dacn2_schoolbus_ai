@@ -153,3 +153,12 @@ body {
     @apply font-sans;
   }
 }
+@theme {
+  --color-ink: #10224a;
+  --color-brand: #2563eb;
+  --color-brand-dark: #1d4ed8;
+  --color-sun: #ffc93c;
+  --color-page: #eef5ff;
+  --color-muted-ink: #52628a;
+  --font-sans: "Be Vietnam Pro", system-ui, sans-serif;
+}

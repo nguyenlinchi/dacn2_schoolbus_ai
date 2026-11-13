@@ -1,5 +1,6 @@
 
 import { supabase } from '@/lib/supabase'
+
 import type {
   Bus,
   BusWithTrip,
@@ -8,29 +9,71 @@ import type {
   Trip,
 } from '../types'
 
-function getLocalDate(): string {
+export function getLocalDate(): string {
   const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
 
-  return `${year}-${month}-${day}`
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function sortGps<T extends { recorded_at: string }>(
+  items: T[],
+): T[] {
+  return [...items].sort(
+    (a, b) =>
+      new Date(b.recorded_at).getTime() -
+      new Date(a.recorded_at).getTime(),
+  )
+}
+
+export type CreateBusData = {
+  bus_code: string
+  license_plate: string
+  capacity: number
+  vehicle_model: string | null
+  status: Bus['status']
 }
 
 export const routesService = {
-  // Lấy danh sách xe
+    async createBus(payload: CreateBusData): Promise<Bus> {
+    const { data, error } = await supabase
+      .from('buses')
+      .insert({
+        bus_code: payload.bus_code.trim(),
+        license_plate: payload.license_plate.trim(),
+        capacity: payload.capacity,
+        vehicle_model: payload.vehicle_model?.trim() || null,
+        status: payload.status,
+      })
+      .select('*')
+      .single()
+
+    if (error) {
+      console.error('Lỗi thêm xe:', error)
+      throw error
+    }
+
+    return data as Bus
+  },
+  // LẤY TẤT CẢ XE TRONG BẢNG BUSES
   async getBuses(): Promise<Bus[]> {
     const { data, error } = await supabase
       .from('buses')
       .select('*')
       .order('created_at', { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      console.error('Lỗi lấy danh sách xe:', error)
+      throw error
+    }
 
     return (data ?? []) as Bus[]
   },
 
-  // Lấy tuyến đường và các điểm dừng
+  // LẤY TẤT CẢ TUYẾN VÀ ĐIỂM DỪNG
   async getRoutes(): Promise<RouteSummary[]> {
     const { data, error } = await supabase
       .from('routes')
@@ -38,13 +81,17 @@ export const routesService = {
         *,
         route_stops (*)
       `)
-      .order('created_at', { ascending: false })
+      .order('route_code', { ascending: true })
 
-    if (error) throw error
+    if (error) {
+      console.error('Lỗi lấy tuyến đường:', error)
+      throw error
+    }
 
     return (data ?? []).map((item: any) => {
-      const stops = [...(item.route_stops ?? [])]
-        .sort((a, b) => a.stop_order - b.stop_order)
+      const stops = [...(item.route_stops ?? [])].sort(
+        (a, b) => a.stop_order - b.stop_order,
+      )
 
       return {
         ...item,
@@ -56,10 +103,8 @@ export const routesService = {
     }) as RouteSummary[]
   },
 
-  // Lấy chuyến xe cùng xe, tuyến, tài xế, giáo viên và GPS
-  async getTrips(date?: string): Promise<Trip[]> {
-    const tripDate = date ?? getLocalDate()
-
+  // LẤY CÁC CHUYẾN TRONG NGÀY
+  async getTrips(date: string = getLocalDate()): Promise<Trip[]> {
     const { data, error } = await supabase
       .from('trips')
       .select(`
@@ -79,33 +124,36 @@ export const routesService = {
         ),
         gps_locations (*)
       `)
-      .eq('trip_date', tripDate)
+      .eq('trip_date', date)
       .order('start_at', { ascending: true })
 
-    if (error) throw error
+    if (error) {
+      console.error('Lỗi lấy chuyến xe:', error)
+      throw error
+    }
 
-    return (data ?? []).map((trip: any) => ({
-      ...trip,
-      gps_locations: [...(trip.gps_locations ?? [])].sort(
-        (a, b) =>
-          new Date(b.recorded_at).getTime() -
-          new Date(a.recorded_at).getTime(),
-      ),
-      routes: trip.routes
-        ? {
-            ...trip.routes,
-            route_stops: [...(trip.routes.route_stops ?? [])].sort(
-              (a, b) => a.stop_order - b.stop_order,
-            ),
-          }
-        : null,
-    })) as Trip[]
+    return (data ?? []).map((trip: any) => {
+      const stops = [...(trip.routes?.route_stops ?? [])].sort(
+        (a, b) => a.stop_order - b.stop_order,
+      )
+
+      return {
+        ...trip,
+        routes: trip.routes
+          ? {
+              ...trip.routes,
+              route_stops: stops,
+            }
+          : null,
+        gps_locations: sortGps(trip.gps_locations ?? []),
+      }
+    }) as Trip[]
   },
 
-  // Lấy GPS gần nhất của các chuyến trong ngày
-  async getGpsLocations(date?: string): Promise<GpsLocation[]> {
-    const tripDate = date ?? getLocalDate()
-
+  // LẤY GPS CỦA CÁC CHUYẾN TRONG NGÀY
+  async getGpsLocations(
+    date: string = getLocalDate(),
+  ): Promise<GpsLocation[]> {
     const { data, error } = await supabase
       .from('gps_locations')
       .select(`
@@ -115,56 +163,72 @@ export const routesService = {
           trip_date
         )
       `)
-      .eq('trips.trip_date', tripDate)
+      .eq('trips.trip_date', date)
       .order('recorded_at', { ascending: false })
       .limit(200)
 
-    if (error) throw error
+    if (error) {
+      console.error('Lỗi lấy GPS:', error)
+      throw error
+    }
 
     return (data ?? []) as unknown as GpsLocation[]
   },
 
-  // Kết hợp xe với chuyến, tài xế và giáo viên
+  // GHÉP TẤT CẢ XE VỚI CHUYẾN NẾU CÓ
   buildBuses(
     buses: Bus[],
     trips: Trip[],
   ): BusWithTrip[] {
     return buses.map((bus) => {
-      const busTrips = trips.filter(
-        (trip) => trip.bus_id === bus.bus_id,
-      )
+      const busTrips = trips
+        .filter((trip) => trip.bus_id === bus.bus_id)
+        .sort((a, b) => {
+          const priority: Record<string, number> = {
+            IN_PROGRESS: 1,
+            SCHEDULED: 2,
+            COMPLETED: 3,
+            CANCELLED: 4,
+          }
 
-      const currentTrip =
-        busTrips.find((trip) => trip.status === 'IN_PROGRESS') ??
-        busTrips.find((trip) => trip.status === 'SCHEDULED') ??
-        busTrips[0] ??
-        null
+          return (
+            (priority[a.status] ?? 5) -
+            (priority[b.status] ?? 5)
+          )
+        })
 
-      const gps = currentTrip?.gps_locations ?? []
+      const currentTrip = busTrips[0] ?? null
 
       return {
         ...bus,
         currentTrip,
+
         driverName:
-          currentTrip?.drivers?.users?.full_name ?? 'Chưa phân công',
+          currentTrip?.drivers?.users?.full_name ??
+          'Chưa phân công',
+
         teacherName:
-          currentTrip?.teachers?.users?.full_name ?? 'Chưa phân công',
+          currentTrip?.teachers?.users?.full_name ??
+          'Chưa phân công',
+
         routeName:
-          currentTrip?.routes?.route_name ?? 'Chưa có tuyến',
-        latestGps: gps[0] ?? null,
+          currentTrip?.routes?.route_name ??
+          'Chưa có tuyến',
+
+        latestGps:
+          currentTrip?.gps_locations?.[0] ?? null,
       }
     })
   },
 
-  // Tổng hợp số lượng xe theo tuyến
+  // THỐNG KÊ XE THEO TUYẾN
   buildRoutes(
     routes: RouteSummary[],
     buses: BusWithTrip[],
   ): RouteSummary[] {
     return routes.map((route) => {
       const routeBuses = buses.filter(
-        (bus) =>
-          bus.currentTrip?.route_id === route.route_id,
+        (bus) => bus.currentTrip?.route_id === route.route_id,
       )
 
       return {
@@ -176,38 +240,5 @@ export const routesService = {
       }
     })
   },
-}
-
-export async function getLatestVehicleLocations() {
-  const { data, error } = await supabase
-    .from('gps_locations')
-    .select(`
-      gps_id,
-      trip_id,
-      latitude,
-      longitude,
-      speed,
-      heading,
-      accuracy,
-      recorded_at,
-      trips!inner (
-        trip_id,
-        status,
-        bus_id,
-        buses (
-          bus_code,
-          license_plate
-        )
-      )
-    `)
-    .order('recorded_at', { ascending: false })
-    .limit(100)
-
-  if (error) {
-    console.error('Lỗi lấy vị trí xe:', error)
-    throw error
-  }
-
-  return data ?? []
 }
 

@@ -8,6 +8,9 @@ import { PagePlaceholder } from '@/features/shared/PagePlaceholder'
 import { OverviewPage } from '@/features/overview/OverviewPage'
 import { RoutesPage } from '@/features/routes/RoutesPage'
 import { StaffPage } from '@/features/staff/StaffPage'
+import { AbsencesPage } from '@/features/absences/AbsencesPage'
+import { AlertsPage } from '@/features/alerts/AlertsPage'
+import { AttendancePage } from '@/features/attendance/AttendancePage'
 
 export default function App() {
   return (
@@ -22,9 +25,9 @@ export default function App() {
           <Route path="staff" element={<StaffPage />} />
           <Route path="fleet" element={<FleetPage />} />
           <Route path="routes" element={<RoutesPage />} />
-          <Route path="attendance" element={<PagePlaceholder title="Điểm danh" />} />
-          <Route path="absences" element={<PagePlaceholder title="Đơn xin nghỉ" />} />
-          <Route path="alerts" element={<PagePlaceholder title="Cảnh báo" />} />
+          <Route path="attendance" element={<AttendancePage />} />
+          <Route path="absences" element={<AbsencesPage/>} />
+          <Route path="alerts" element={<AlertsPage/>} />
           <Route path="account" element={<ChangePasswordPage />} />
         </Route>
       </Route>

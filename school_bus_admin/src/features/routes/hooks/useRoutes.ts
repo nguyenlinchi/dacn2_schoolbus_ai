@@ -1,6 +1,13 @@
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { routesService } from '../services/routesService'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+
+import { routesService, getLocalDate } from '../services/routesService'
+
 import type {
   BusWithTrip,
   GpsLocation,
@@ -23,19 +30,41 @@ export function useRoutes() {
 
   const loadData = useCallback(async (refresh = false) => {
     try {
-      if (refresh) setRefreshing(true)
-      else setLoading(true)
+      if (refresh) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
 
       setError(null)
 
-      const [busData, routeData, tripData, gpsData] =
-        await Promise.all([
-          routesService.getBuses(),
-          routesService.getRoutes(),
-          routesService.getTrips(),
-          routesService.getGpsLocations(),
-        ])
+      const today = getLocalDate()
 
+      // Lấy danh sách xe và tuyến độc lập với dữ liệu chuyến.
+      const [busData, routeData, tripResult] = await Promise.all([
+        routesService.getBuses(),
+        routesService.getRoutes(),
+        routesService.getTrips(today).then(
+          (data) => ({ data, error: null as unknown }),
+          (error: unknown) => ({ data: [] as Trip[], error }),
+        ),
+      ])
+
+      // GPS có lỗi không làm mất danh sách phương tiện.
+      const gpsData = await routesService
+        .getGpsLocations(today)
+        .catch((gpsError: unknown) => {
+          console.error('Không tải được GPS:', gpsError)
+          return [] as GpsLocation[]
+        })
+
+      if (tripResult.error) {
+        console.error('Không tải được chuyến xe:', tripResult.error)
+      }
+
+      const tripData = tripResult.data
+
+      // BẮT BUỘC giữ toàn bộ xe lấy được từ bảng buses.
       const mappedBuses = routesService.buildBuses(
         busData,
         tripData,
@@ -50,13 +79,17 @@ export function useRoutes() {
       setRoutes(mappedRoutes)
       setTrips(tripData)
       setGpsLocations(gpsData)
-    } catch (err) {
+
+      if (tripResult.error) {
+        setError('Đã tải danh sách xe và tuyến, nhưng chưa tải được chuyến xe hôm nay.')
+      }
+    } catch (err: unknown) {
       console.error('Routes loading error:', err)
 
       setError(
         err instanceof Error
           ? err.message
-          : 'Không thể tải dữ liệu từ cơ sở dữ liệu.',
+          : 'Không thể tải dữ liệu từ Supabase.',
       )
     } finally {
       setLoading(false)
@@ -68,8 +101,9 @@ export function useRoutes() {
     void loadData()
   }, [loadData])
 
+  // Tìm kiếm nhưng không tự động loại xe chưa phân công.
   const filteredBuses = useMemo(() => {
-    const keyword = search.trim().toLowerCase()
+    const keyword = search.trim().toLocaleLowerCase('vi')
 
     return buses.filter((bus) => {
       const matchesSearch =
@@ -82,7 +116,9 @@ export function useRoutes() {
           bus.teacherName,
           bus.routeName,
         ].some((value) =>
-          String(value ?? '').toLowerCase().includes(keyword),
+          String(value ?? '')
+            .toLocaleLowerCase('vi')
+            .includes(keyword),
         )
 
       const matchesRoute =
@@ -93,17 +129,20 @@ export function useRoutes() {
     })
   }, [buses, search, selectedRoute])
 
-  const activeBuses = buses.filter(
-    (bus) => bus.status === 'ACTIVE',
-  ).length
+  const activeBuses = useMemo(
+    () => buses.filter((bus) => bus.status === 'ACTIVE').length,
+    [buses],
+  )
 
-  const runningTrips = trips.filter(
-    (trip) => trip.status === 'IN_PROGRESS',
-  ).length
+  const runningTrips = useMemo(
+    () => trips.filter((trip) => trip.status === 'IN_PROGRESS').length,
+    [trips],
+  )
 
-  const maintenanceBuses = buses.filter(
-    (bus) => bus.status === 'MAINTENANCE',
-  ).length
+  const maintenanceBuses = useMemo(
+    () => buses.filter((bus) => bus.status === 'MAINTENANCE').length,
+    [buses],
+  )
 
   const getLatestGps = useCallback(
     (tripId: string) =>

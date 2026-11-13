@@ -1,13 +1,26 @@
 
 export type UUID = string
 
+export type BusStatus =
+  | 'ACTIVE'
+  | 'MAINTENANCE'
+  | 'INACTIVE'
+
+export type TripStatus =
+  | 'SCHEDULED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELLED'
+
+export type TripType = 'MORNING' | 'AFTERNOON'
+
 export interface Bus {
   bus_id: UUID
   bus_code: string
   license_plate: string
   capacity: number
   vehicle_model: string | null
-  status: 'ACTIVE' | 'MAINTENANCE' | 'INACTIVE'
+  status: BusStatus
   created_at: string
   updated_at: string
 }
@@ -46,6 +59,7 @@ export interface UserProfile {
 
 export interface Driver {
   driver_id: UUID
+  user_id: UUID
   driver_code: string
   license_number: string
   license_expiry: string | null
@@ -54,6 +68,7 @@ export interface Driver {
 
 export interface Teacher {
   teacher_id: UUID
+  user_id: UUID
   teacher_code: string
   department: string | null
   users: UserProfile | null
@@ -77,14 +92,10 @@ export interface Trip {
   teacher_id: UUID
   driver_id: UUID
   trip_date: string
-  trip_type: 'MORNING' | 'AFTERNOON'
+  trip_type: TripType
   start_at: string
   end_at: string
-  status:
-    | 'SCHEDULED'
-    | 'IN_PROGRESS'
-    | 'COMPLETED'
-    | 'CANCELLED'
+  status: TripStatus
 
   buses: Bus | null
   routes: BusRoute | null
