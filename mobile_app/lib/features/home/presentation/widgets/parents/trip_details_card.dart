@@ -85,6 +85,21 @@ class LatestTripCard extends StatelessWidget {
   const LatestTripCard({super.key, required this.trip});
   final TodayTrip trip;
 
+  /// Nhãn kết quả theo ĐIỂM DANH của bé (trước đây luôn ghi "Hoàn tất", sai khi bé chưa xuống xe).
+  Widget _resultChip() {
+    final (text, bg, fg) = switch (trip.attendanceStatus) {
+      'ALIGHTED' => ('Hoàn tất', HomeColors.greenSoft, HomeColors.greenText),
+      'ABSENT' => ('Nghỉ học', HomeColors.blueSoft, HomeColors.primary),
+      'BOARDED' => ('Chưa xuống xe', HomeColors.redSoft, HomeColors.redText),
+      _ => ('Không đi xe', HomeColors.yellowSoft, HomeColors.yellowText),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
+      child: Text(text, style: homeText(12, FontWeight.w600, fg)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hm = DateFormat('HH:mm');
@@ -94,7 +109,7 @@ class LatestTripCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const HomeSectionTitle('Chuyến gần nhất'),
+        const HomeSectionTitle('Kết quả chuyến'),
         HomeCard(
           child: Row(
             children: [
@@ -114,17 +129,7 @@ class LatestTripCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: HomeColors.greenSoft,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Hoàn tất',
-                  style: homeText(12, FontWeight.w600, HomeColors.greenText),
-                ),
-              ),
+              _resultChip(),
             ],
           ),
         ),

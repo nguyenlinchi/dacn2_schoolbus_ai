@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/features/home/presentation/pages/parent/home_theme.dart';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 /// Thẻ trắng bo góc có bóng nhẹ.
 class HomeCard extends StatelessWidget {
   const HomeCard({
@@ -56,26 +56,60 @@ class HomeSectionTitle extends StatelessWidget {
   }
 }
 
-/// Vòng tròn gradient chứa chữ viết tắt tên.
+/// Tên bucket Storage chứa ảnh học sinh. CHỈ dùng khi cột students.avatar_url lưu ĐƯỜNG DẪN
+/// (vd "students/abc.jpg") thay vì link đầy đủ (https://...).
+const kAvatarBucket = 'avatars'; // TODO: đổi đúng tên bucket của nhóm
+
+/// Link ảnh dùng được: giữ nguyên nếu đã là http(s), nếu là đường dẫn thì đổi sang link công khai.
+String? resolveAvatarUrl(String? raw) {
+  final v = raw?.trim() ?? '';
+  if (v.isEmpty) return null;
+  if (v.startsWith('http://') || v.startsWith('https://')) return v;
+  try {
+    return Supabase.instance.client.storage.from(kAvatarBucket).getPublicUrl(v);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Ảnh tròn của học sinh; chưa có ảnh (hoặc tải lỗi) thì hiện chữ viết tắt trên nền gradient.
 class HomeAvatar extends StatelessWidget {
-  const HomeAvatar({super.key, required this.text});
+  const HomeAvatar({super.key, required this.text, this.imageUrl, this.size = 44});
   final String text;
+  final String? imageUrl;
+  final double size;
+
+  Widget _initials() => Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [HomeColors.primaryMid, HomeColors.primaryLight],
+          ),
+        ),
+        child: Text(text, style: homeText(size * 0.34, FontWeight.w700, Colors.white)),
+      );
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [HomeColors.primaryMid, HomeColors.primaryLight],
+    final url = resolveAvatarUrl(imageUrl);
+    if (url == null) return _initials();
+    return ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _initials(),
+          loadingBuilder: (context, child, progress) =>
+              progress == null ? child : _initials(),
         ),
       ),
-      child: Text(text, style: homeText(15, FontWeight.w700, Colors.white)),
     );
   }
 }

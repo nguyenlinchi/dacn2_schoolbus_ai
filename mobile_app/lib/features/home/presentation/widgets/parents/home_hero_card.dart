@@ -50,10 +50,9 @@ class _HomeHeroCardState extends ConsumerState<HomeHeroCard> {
     final live = trip.isActive && gps != null && !stale;
     final s = summarizeTrip(trip, gps, stale, child.fullName);
 
-    final route = tripRouteLabel(trip);
     final subtitle = [
       if (child.className != null) 'Lớp ${child.className}',
-      if (route != null) route,
+      if (tripRouteLabel(trip) != null) tripRouteLabel(trip)!,
       trip.tripTypeLabel,
     ].join(' · ');
 
@@ -65,7 +64,7 @@ class _HomeHeroCardState extends ConsumerState<HomeHeroCard> {
         children: [
           Row(
             children: [
-              HomeAvatar(text: nameInitials(child.fullName)),
+              HomeAvatar(text: nameInitials(child.fullName), imageUrl: child.avatarUrl),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

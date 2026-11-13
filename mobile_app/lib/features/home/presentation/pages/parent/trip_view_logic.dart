@@ -66,27 +66,6 @@ BusEta? estimateEta(GpsPoint? gps, double? lat, double? lng) {
   return BusEta(minutes < 1 ? 1 : minutes, false);
 }
 
-// --------------------------------------------------------- GPS, tuyến, thời gian
-
-/// Vị trí xe cũ hơn ngưỡng này (giây) thì coi là mất tín hiệu.
-const kGpsStaleSeconds = 60;
-
-bool isGpsStale(GpsPoint? gps, {DateTime? now}) {
-  if (gps == null) return false;
-  return (now ?? DateTime.now()).difference(gps.recordedAt).inSeconds > kGpsStaleSeconds;
-}
-
-/// "Tuyến 05"; null nếu chuyến chưa có mã tuyến (DB chưa chạy get_child_today v2).
-String? tripRouteLabel(TodayTrip t) => t.routeCode == null ? null : 'Tuyến ${t.routeCode}';
-
-/// 5 -> "5 giây trước", 130 -> "2 phút trước" (số âm do lệch đồng hồ được coi là 0).
-String agoLabel(int seconds) {
-  final s = seconds < 0 ? 0 : seconds;
-  if (s < 60) return '$s giây trước';
-  if (s < 3600) return '${s ~/ 60} phút trước';
-  return '${s ~/ 3600} giờ trước';
-}
-
 // ----------------------------------------------------------- tóm tắt trạng thái
 
 class TripSummary {
@@ -166,6 +145,11 @@ TripSummary summarizeTrip(TodayTrip t, GpsPoint? gps, bool stale, String childNa
 
   // Xe đang chạy, bé chưa lên xe
   if (gps == null) {
+    final plan = t.pickupEstimatedTime;
+    if (plan != null) {
+      return s('Xe đang chạy', HomeColors.yellowSoft, HomeColors.yellowText, plan,
+          'giờ đón dự kiến · đang chờ tín hiệu GPS từ xe');
+    }
     return s('Xe đang chạy', HomeColors.yellowSoft, HomeColors.yellowText, '--',
         'Đang chờ tín hiệu GPS từ xe');
   }
@@ -257,3 +241,25 @@ TodayTrip pickFeaturedTrip(List<TodayTrip> trips) => trips.firstWhere(
         orElse: () => trips.last,
       ),
     );
+
+// ------------------------------------------------- dùng chung Trang chủ + Theo dõi
+
+/// Quá số giây này không có điểm GPS mới thì coi là MẤT TÍN HIỆU (dùng 1 ngưỡng cho cả hai màn hình).
+const int kGpsStaleSeconds = 60;
+
+bool isGpsStale(GpsPoint? gps, {DateTime? now}) =>
+    gps != null && (now ?? DateTime.now()).difference(gps.recordedAt).inSeconds > kGpsStaleSeconds;
+
+/// 30 -> "30 giây trước", 150 -> "2 phút trước"
+String agoLabel(int seconds) {
+  if (seconds < 60) return '$seconds giây trước';
+  if (seconds < 3600) return '${seconds ~/ 60} phút trước';
+  return '${seconds ~/ 3600} giờ trước';
+}
+
+/// "Tuyến 05" (không bị lặp chữ "Tuyến" nếu tên tuyến đã có sẵn). null nếu chưa có tên/mã tuyến.
+String? tripRouteLabel(TodayTrip t) {
+  final name = (t.routeName != null && t.routeName!.trim().isNotEmpty) ? t.routeName!.trim() : t.routeCode;
+  if (name == null || name.isEmpty) return null;
+  return name.toLowerCase().startsWith('tuyến') ? name : 'Tuyến $name';
+}

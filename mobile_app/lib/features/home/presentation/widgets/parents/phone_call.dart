@@ -10,7 +10,10 @@ Future<void> callPhone(BuildContext context, String? phone) async {
     );
     return;
   }
-  final ok = await launchUrl(Uri(scheme: 'tel', path: p));
+  var ok = false;
+  try {
+    ok = await launchUrl(Uri(scheme: 'tel', path: p));
+  } catch (_) {}
   if (!ok && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Không mở được ứng dụng gọi điện')),

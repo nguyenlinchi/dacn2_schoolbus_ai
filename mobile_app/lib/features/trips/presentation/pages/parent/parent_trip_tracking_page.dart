@@ -341,7 +341,7 @@ class _TrackingViewState extends ConsumerState<_TrackingView>
               children: [
                 Row(
                   children: [
-                    HomeAvatar(text: nameInitials(child.fullName)),
+                    HomeAvatar(text: nameInitials(child.fullName), imageUrl: child.avatarUrl),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
