@@ -5,6 +5,8 @@ import 'register_face_page.dart';
 import 'emergency_alert_modal.dart';
 import 'trip_success_modal.dart';
 
+enum _ToastType { success, error, info }
+
 class TeacherAttendancePage extends StatefulWidget {
   final ValueNotifier<bool>? reloadNotifier;
   final ValueNotifier<String>? directionNotifier;
@@ -66,6 +68,125 @@ class _TeacherAttendancePageState extends State<TeacherAttendancePage> {
     }
   }
 
+  void _showToast({
+    required _ToastType type,
+    required String title,
+    String? subtitle,
+    Duration duration = const Duration(seconds: 3),
+  }) {
+    if (!mounted) return;
+
+    // (nền, viền, màu nhấn, màu tiêu đề, màu dòng phụ, biểu tượng)
+    final (Color bg, Color border, Color accent, Color titleC, Color subC, IconData icon) =
+        switch (type) {
+      _ToastType.success => (
+          const Color(0xFFDCFCE7),
+          const Color(0xFF16A34A),
+          const Color(0xFF16A34A),
+          const Color(0xFF14532D),
+          const Color(0xFF166534),
+          Icons.check_circle_rounded,
+        ),
+      _ToastType.error => (
+          const Color(0xFFFEE2E2),
+          const Color(0xFFDC2626),
+          const Color(0xFFDC2626),
+          const Color(0xFF7F1D1D),
+          const Color(0xFF991B1B),
+          Icons.cancel_rounded,
+        ),
+      _ToastType.info => (
+          const Color(0xFFDBEAFE),
+          const Color(0xFF2563EB),
+          const Color(0xFF2563EB),
+          const Color(0xFF1E3A8A),
+          const Color(0xFF1D4ED8),
+          Icons.info_rounded,
+        ),
+    };
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          padding: EdgeInsets.zero,
+          duration: duration,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          content: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: border, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withOpacity(0.35),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                  child: Icon(icon, color: Colors.white, size: 26),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: titleC,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: subC,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+  }
+
+  String _friendlyDbError(PostgrestException e) {
+    switch (e.code) {
+      case '42501':
+        return 'Bạn không có quyền cập nhật điểm danh của học sinh này';
+      case '23514':
+        return 'Không hợp lệ với quy tắc điểm danh (ví dụ: xuống xe khi chưa lên xe)';
+      default:
+        return e.message;
+    }
+  }
   // 1. LẤY DỮ LIỆU ĐIỂM DANH THỰC TẾ TỪ SUPABASE
   Future<void> _fetchAttendanceData() async {
     setState(() => _isLoading = true);
@@ -192,39 +313,55 @@ class _TeacherAttendancePageState extends State<TeacherAttendancePage> {
   // 2. ĐIỂM DANH THỦ CÔNG THEO NỔI LỢT (PICKUP / DROPOFF)
   Future<void> _markAttendanceManual(Map<String, dynamic> item) async {
     final attendanceId = item['attendance_id'];
-    final String targetStatus = _directionMode == 'PICKUP' ? 'BOARDED' : 'ALIGHTED';
+    final bool pickup = _directionMode == 'PICKUP';
+    final String name = '${item['name']}';
+    final String now = DateTime.now().toIso8601String();
 
     try {
-      final bool pickup = _directionMode == 'PICKUP';
-      final String now = DateTime.now().toIso8601String();
+      final updated = await _supabase
+          .from('attendance')
+          .update({
+            'status': pickup ? 'BOARDED' : 'ALIGHTED',
+            'detection_method': 'MANUAL',
+            'ai_confidence': null, // bắt buộc null khi điểm danh tay
+            if (pickup) 'check_in_time': now else 'check_out_time': now,
+            'recorded_by': _supabase.auth.currentUser?.id,
+          })
+          .eq('attendance_id', attendanceId)
+          .select('attendance_id');
 
-      await _supabase.from('attendance').update({
-        'status': pickup ? 'BOARDED' : 'ALIGHTED',
-        'detection_method': 'MANUAL',
-        'ai_confidence': null, // bắt buộc null khi điểm danh tay
-        if (pickup) 'check_in_time': now else 'check_out_time': now,
-        'recorded_by': _supabase.auth.currentUser?.id,
-      }).eq('attendance_id', attendanceId);
+      if (updated.isEmpty) {
+        _showToast(
+          type: _ToastType.error,
+          title: 'Không cập nhật được',
+          subtitle: 'Bạn không có quyền sửa dòng này hoặc trạng thái đã thay đổi',
+        );
+        return;
+      }
 
       await _fetchAttendanceData();
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _directionMode == 'PICKUP'
-                  ? 'Đã điểm danh LÊN XE cho ${item['name']}'
-                  : 'Đã điểm danh XUỐNG XE (Vào trường) cho ${item['name']}',
-            ),
-          ),
-        );
-      }
+      _showToast(
+        type: _ToastType.success,
+        title: name,
+        subtitle: pickup
+            ? 'Đã điểm danh LÊN XE'
+            : 'Đã điểm danh XUỐNG XE (vào trường)',
+      );
+    } on PostgrestException catch (e) {
+      _showToast(
+        type: _ToastType.error,
+        title: 'Cập nhật thất bại',
+        subtitle: _friendlyDbError(e),
+        duration: const Duration(seconds: 4),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cập nhật thất bại: $e')),
-        );
-      }
+      _showToast(
+        type: _ToastType.error,
+        title: 'Cập nhật thất bại',
+        subtitle: '$e',
+        duration: const Duration(seconds: 4),
+      );
     }
   }
 

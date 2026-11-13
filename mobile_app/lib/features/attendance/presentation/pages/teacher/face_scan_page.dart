@@ -343,7 +343,7 @@ class _FaceScanPageState extends State<FaceScanPage>
             subtitle: blockMsg,
             percent: matchPercent,
           ));
-          await Future.delayed(const Duration(seconds: 2));
+          await Future.delayed(const Duration(seconds: 3));
           if (mounted) {
             setState(() => _isProcessingAI = false);
             _startLiveFaceDetection();
@@ -400,7 +400,7 @@ class _FaceScanPageState extends State<FaceScanPage>
   }
   void _showNotice(
     _ScanNotice n, {
-    Duration duration = const Duration(seconds: 2),
+    Duration duration = const Duration(seconds: 3),
   }) {
     if (!mounted) return;
     _noticeTimer?.cancel();
