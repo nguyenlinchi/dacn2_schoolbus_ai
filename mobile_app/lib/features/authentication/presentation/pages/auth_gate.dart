@@ -10,6 +10,8 @@ import 'package:mobile_app/features/authentication/presentation/pages/admin_home
 import 'package:mobile_app/features/authentication/presentation/pages/driver_home_page.dart';
 import 'package:mobile_app/features/authentication/presentation/pages/parent_home_page.dart';
 
+import 'package:mobile_app/features/home/presentation/pages/parent/parent_shell.dart';
+
 // Gọi TeacherShell thay vì TeacherHomePage trực tiếp
 import 'package:mobile_app/features/home/presentation/teacher/layouts/teacher_shell.dart';
 
@@ -81,7 +83,7 @@ class AuthGate extends ConsumerWidget {
             return DriverHomePage(user: user);
 
           case UserRole.parent:
-            return ParentHomePage(user: user);
+            return const ParentShell();
         }
       },
     );
