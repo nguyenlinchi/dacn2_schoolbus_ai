@@ -15,7 +15,8 @@ import {
 } from 'lucide-react'
 
 import { useRoutes } from './hooks/useRoutes'
-import type { BusWithTrip, RouteSummary } from './types'
+import type { BusWithTrip, RouteSummary, Trip } from './types'
+import { EditTripStaffModal } from './components/EditTripStaffModal'
 
 import { AddTripModal } from './components/AddTripModal'
 import { AddBusModal } from './components/AddBusModal'
@@ -28,6 +29,7 @@ interface StatusBadgeProps {
 
 interface VehicleRowProps {
   bus: BusWithTrip
+  onAssign: (bus: BusWithTrip) => void
 }
 
 interface RouteMapProps {
@@ -65,7 +67,7 @@ function StatusBadge({ status }: StatusBadgeProps) {
 // DÒNG PHƯƠNG TIỆN
 // ==============================
 
-function VehicleRow({ bus }: VehicleRowProps) {
+function VehicleRow({ bus, onAssign }: VehicleRowProps) {
   const teacherName = bus.teacherName?.trim()
   const driverName = bus.driverName?.trim()
 
@@ -117,10 +119,14 @@ function VehicleRow({ bus }: VehicleRowProps) {
         <button
           type="button"
           className="routes-action-btn"
-          aria-label={`Tùy chọn xe ${bus.license_plate}`}
-          title={`Tùy chọn xe ${bus.license_plate}`}
+          style={{ width: 'auto', padding: '0 12px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}
+          title={`Phân công xe ${bus.license_plate}`}
+          onClick={() => onAssign(bus)}
         >
-          <MoreVertical size={17} />
+          {bus.currentTrip &&
+          ['SCHEDULED', 'IN_PROGRESS'].includes(bus.currentTrip.status)
+            ? 'Đổi GV / tài xế'
+            : 'Tạo chuyến'}
         </button>
       </td>
     </tr>
@@ -261,6 +267,17 @@ export function RoutesPage() {
   const [showAddTrip, setShowAddTrip] = useState(false)
   const [showAddBus, setShowAddBus] = useState(false)
 
+  const [editTrip, setEditTrip] = useState<Trip | null>(null)
+  const [addTripBusId, setAddTripBusId] = useState<string | undefined>(undefined)
+
+  const handleAssign = (bus: BusWithTrip) => {
+    if (bus.currentTrip && ['SCHEDULED', 'IN_PROGRESS'].includes(bus.currentTrip.status)) {
+      setEditTrip(bus.currentTrip)
+    } else {
+      setAddTripBusId(bus.bus_id)
+      setShowAddTrip(true)
+    }
+  }
   // ==============================
   // CHI TIẾT TUYẾN
   // ==============================
@@ -338,7 +355,10 @@ export function RoutesPage() {
           <button
             type="button"
             className="routes-add-trip"
-            onClick={() => setShowAddTrip(true)}
+            onClick={() => {
+              setAddTripBusId(undefined)
+              setShowAddTrip(true)
+            }}
           >
             <Plus size={17} />
             Thêm chuyến
@@ -447,6 +467,7 @@ export function RoutesPage() {
                 <VehicleRow
                   key={bus.bus_id}
                   bus={bus}
+                  onAssign={handleAssign}
                 />
               ))}
 
@@ -659,9 +680,21 @@ export function RoutesPage() {
 
       {showAddTrip && (
         <AddTripModal
+          defaultBusId={addTripBusId}
           onClose={() => setShowAddTrip(false)}
           onSuccess={() => {
             setShowAddTrip(false)
+            void reload()
+          }}
+        />
+      )}
+
+      {editTrip && (
+        <EditTripStaffModal
+          trip={editTrip}
+          onClose={() => setEditTrip(null)}
+          onSuccess={() => {
+            setEditTrip(null)
             void reload()
           }}
         />

@@ -1,10 +1,13 @@
 import { supabase } from '@/lib/supabase'
 import type {
+  AssignRouteInput,
   ChildRequest,
+  CurrentAssignment,
   FaceStatus,
   NewStudentInput,
   ParentOption,
   RemoveResult,
+  RouteOption,
   StudentRow,
 } from '../types'
 
@@ -60,6 +63,11 @@ const ERROR_TEXT: Record<string, string> = {
   PARENT_NOT_FOUND: 'Không tìm thấy phụ huynh đã chọn',
   INVALID_RELATIONSHIP: 'Quan hệ với học sinh không hợp lệ',
   STUDENT_NOT_FOUND: 'Không tìm thấy học sinh (có thể đã bị xóa)',
+    DATE_IN_PAST: 'Ngày hiệu lực không được ở quá khứ',
+  STUDENT_NOT_ACTIVE: 'Học sinh chưa được duyệt hoặc đã ngừng hoạt động',
+  ROUTE_NOT_AVAILABLE: 'Tuyến không còn hoạt động hoặc không tồn tại',
+  SAME_STOP: 'Điểm đón và điểm trả phải khác nhau',
+  STOP_NOT_IN_ROUTE: 'Điểm đón hoặc điểm trả không thuộc tuyến đã chọn',
 }
 
 function friendlyError(message: string): string {
@@ -165,6 +173,73 @@ export const studentService = {
         parentPhone: l.parent_phone ?? '',
         parentEmail: l.parent_email ?? '',
       }))
+  },
+    /** Tuyến đang hoạt động kèm điểm dừng, để chọn khi gán học sinh. */
+  async getRouteOptions(): Promise<RouteOption[]> {
+    const [routesRes, stopsRes, countRes] = await Promise.all([
+      supabase.from('routes').select('route_id, route_code, route_name').eq('status', 'ACTIVE').order('route_code'),
+      supabase.from('route_stops').select('stop_id, route_id, stop_name, stop_order').eq('is_active', true).order('stop_order'),
+      supabase.from('student_routes').select('route_id').eq('status', 'ACTIVE'),
+    ])
+    for (const res of [routesRes, stopsRes, countRes]) {
+      if (res.error) throw new Error(friendlyError(res.error.message))
+    }
+
+    const countByRoute = new Map<string, number>()
+    for (const r of countRes.data ?? []) {
+      countByRoute.set(r.route_id, (countByRoute.get(r.route_id) ?? 0) + 1)
+    }
+    const stopsByRoute = new Map<string, RouteOption['stops']>()
+    for (const s of stopsRes.data ?? []) {
+      const list = stopsByRoute.get(s.route_id) ?? []
+      list.push({ stopId: s.stop_id, name: s.stop_name, order: s.stop_order })
+      stopsByRoute.set(s.route_id, list)
+    }
+
+    return (routesRes.data ?? []).map((r) => ({
+      routeId: r.route_id,
+      code: r.route_code,
+      name: r.route_name,
+      studentCount: countByRoute.get(r.route_id) ?? 0,
+      stops: stopsByRoute.get(r.route_id) ?? [],
+    }))
+  },
+
+  async getCurrentAssignment(studentId: string): Promise<CurrentAssignment | null> {
+    const { data, error } = await supabase
+      .from('student_routes')
+      .select('route_id, pickup_stop_id, dropoff_stop_id, effective_from')
+      .eq('student_id', studentId)
+      .eq('status', 'ACTIVE')
+      .order('effective_from', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) throw new Error(friendlyError(error.message))
+    if (!data) return null
+    return {
+      routeId: data.route_id,
+      pickupStopId: data.pickup_stop_id,
+      dropoffStopId: data.dropoff_stop_id,
+      effectiveFrom: data.effective_from,
+    }
+  },
+
+  async assignRoute(i: AssignRouteInput) {
+    const { error } = await supabase.rpc('admin_assign_student_route', {
+      p_student_id: i.studentId,
+      p_route_id: i.routeId,
+      p_pickup_stop_id: i.pickupStopId,
+      p_dropoff_stop_id: i.dropoffStopId,
+      p_effective_from: i.effectiveFrom || null,
+    })
+    if (error) throw new Error(friendlyError(error.message))
+  },
+
+  async unassignRoute(studentId: string) {
+    const { error } = await supabase.rpc('admin_unassign_student_route', {
+      p_student_id: studentId,
+    })
+    if (error) throw new Error(friendlyError(error.message))
   },
 
   async reviewRequest(p: {

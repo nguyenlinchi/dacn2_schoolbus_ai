@@ -10,6 +10,8 @@ export interface TripFormData {
   teacher_id: string
   trip_date: string
   trip_type: TripType
+  start_time: string // 'HH:MM', để trống = giờ mặc định (sáng 06:30-07:45, chiều 16:30-17:45)
+  end_time: string
 }
 
 export interface TripFormOptions {
@@ -141,66 +143,64 @@ export async function getTripFormOptions(): Promise<TripFormOptions> {
   }
 }
 
-export async function createTrip(input: TripFormData) {
-  // Kiểm tra dữ liệu bắt buộc trước khi gửi lên Supabase.
-  if (
-    !input.bus_id ||
-    !input.route_id ||
-    !input.driver_id ||
-    !input.teacher_id ||
-    !input.trip_date
-  ) {
+const TRIP_ERRORS: Record<string, string> = {
+  NOT_ALLOWED: 'Bạn không có quyền thực hiện thao tác này',
+  INVALID_TRIP_TYPE: 'Buổi chạy không hợp lệ',
+  DATE_IN_PAST: 'Không thể tạo chuyến cho ngày đã qua',
+  BUS_NOT_AVAILABLE: 'Xe không còn hoạt động hoặc không tồn tại',
+  ROUTE_NOT_AVAILABLE: 'Tuyến không còn hoạt động hoặc không tồn tại',
+  DRIVER_NOT_FOUND: 'Không tìm thấy tài xế',
+  TEACHER_NOT_FOUND: 'Không tìm thấy giáo viên',
+  INVALID_TIME: 'Giờ kết thúc phải sau giờ khởi hành',
+  BUS_BUSY: 'Xe này đã có chuyến trong cùng buổi và ngày đã chọn',
+  DRIVER_BUSY: 'Tài xế này đã có chuyến trong cùng buổi và ngày đã chọn',
+  TEACHER_BUSY: 'Giáo viên này đã có chuyến trong cùng buổi và ngày đã chọn',
+  TRIP_NOT_FOUND: 'Không tìm thấy chuyến xe',
+  TRIP_CLOSED: 'Chuyến đã hoàn thành hoặc đã hủy, không thể thay đổi',
+}
+
+function friendlyTripError(message: string): string {
+  for (const [code, text] of Object.entries(TRIP_ERRORS)) {
+    if (message.includes(code)) return text
+  }
+  return message
+}
+
+export async function createTrip(input: TripFormData): Promise<string> {
+  if (!input.bus_id || !input.route_id || !input.driver_id || !input.teacher_id || !input.trip_date) {
     throw new Error('Vui lòng nhập đầy đủ thông tin chuyến xe.')
   }
 
-  // Kiểm tra xe đã có chuyến cùng buổi trong ngày chưa.
-  const { data: existingTrip, error: checkError } = await supabase
-    .from('trips')
-    .select('trip_id, status')
-    .eq('bus_id', input.bus_id)
-    .eq('trip_date', input.trip_date)
-    .eq('trip_type', input.trip_type)
-    .in('status', ['SCHEDULED', 'IN_PROGRESS'])
-    .limit(1)
-    .maybeSingle()
-
-  if (checkError) {
-    throw new Error(`Không kiểm tra được lịch xe: ${checkError.message}`)
-  }
-
-  if (existingTrip) {
-    throw new Error('Xe này đã có chuyến trong cùng buổi và ngày đã chọn.')
-  }
-
-  // Ghi chuyến mới trực tiếp vào bảng trips.
-  const { data, error } = await supabase
-    .from('trips')
-    .insert({
-      bus_id: input.bus_id,
-      route_id: input.route_id,
-      driver_id: input.driver_id,
-      teacher_id: input.teacher_id,
-      trip_date: input.trip_date,
-      trip_type: input.trip_type,
-      status: 'SCHEDULED',
-    })
-    .select(`
-      trip_id,
-      bus_id,
-      route_id,
-      driver_id,
-      teacher_id,
-      trip_date,
-      trip_type,
-      status,
-      created_at
-    `)
-    .single()
+  const { data, error } = await supabase.rpc('admin_create_trip', {
+    p_bus_id: input.bus_id,
+    p_route_id: input.route_id,
+    p_driver_id: input.driver_id,
+    p_teacher_id: input.teacher_id,
+    p_trip_date: input.trip_date,
+    p_trip_type: input.trip_type,
+    p_start_time: input.start_time || null,
+    p_end_time: input.end_time || null,
+  })
 
   if (error) {
     console.error('Supabase createTrip error:', error)
-    throw new Error(`Không thể lưu chuyến xe: ${error.message}`)
+    throw new Error(friendlyTripError(error.message))
   }
+  return data as string
+}
 
-  return data
+/** Đổi xe / tài xế / giáo viên của một chuyến chưa hoàn thành. */
+export async function updateTripStaff(input: {
+  tripId: string
+  busId: string
+  driverId: string
+  teacherId: string
+}) {
+  const { error } = await supabase.rpc('admin_update_trip_staff', {
+    p_trip_id: input.tripId,
+    p_bus_id: input.busId,
+    p_driver_id: input.driverId,
+    p_teacher_id: input.teacherId,
+  })
+  if (error) throw new Error(friendlyTripError(error.message))
 }

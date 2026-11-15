@@ -14,6 +14,7 @@ import './AddTripModal.css'
 interface AddTripModalProps {
   onClose: () => void
   onSuccess: () => void | Promise<void>
+  defaultBusId?: string
 }
 
 function getTodayDate(): string {
@@ -31,14 +32,20 @@ const initialForm: TripFormData = {
   driver_id: '',
   teacher_id: '',
   trip_date: getTodayDate(),
-  trip_type: 'MORNING',
+    trip_type: 'MORNING',
+  start_time: '',
+  end_time: '',
 }
 
 export function AddTripModal({
   onClose,
   onSuccess,
+  defaultBusId,
 }: AddTripModalProps) {
-  const [form, setForm] = useState<TripFormData>(initialForm)
+  const [form, setForm] = useState<TripFormData>({
+    ...initialForm,
+    bus_id: defaultBusId ?? '',
+  })
 
   const [options, setOptions] = useState<TripFormOptions>({
     buses: [],
@@ -334,7 +341,32 @@ export function AddTripModal({
                   <option value="AFTERNOON">Buổi chiều</option>
                 </select>
               </div>
+              {/* GIỜ KHỞI HÀNH */}
+              <div className="add-trip-field">
+                <label htmlFor="trip-start">Giờ khởi hành</label>
+                <input
+                  id="trip-start"
+                  type="time"
+                  value={form.start_time}
+                  onChange={(event) => updateForm('start_time', event.target.value)}
+                />
+              </div>
+
+              {/* GIỜ KẾT THÚC */}
+              <div className="add-trip-field">
+                <label htmlFor="trip-end">Giờ kết thúc</label>
+                <input
+                  id="trip-end"
+                  type="time"
+                  value={form.end_time}
+                  onChange={(event) => updateForm('end_time', event.target.value)}
+                />
+              </div>
             </div>
+
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748B' }}>
+              Để trống giờ: buổi sáng 06:30–07:45, buổi chiều 16:30–17:45.
+            </p>
 
             {/* TRẠNG THÁI */}
             <div className="add-trip-status">

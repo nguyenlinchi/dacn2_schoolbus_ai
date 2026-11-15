@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
-import { MoreVertical, Plus, Search, Trash2 } from 'lucide-react'
+import { Bus, MoreVertical, Plus, Search, Trash2 } from 'lucide-react'
 import type { FaceStatus, StudentRow } from '../types'
 
 const PAGE_SIZE = 8
@@ -36,6 +36,8 @@ interface Props {
   onSelect: (s: StudentRow) => void
   onAddStudent: () => void
   onRemove: (s: StudentRow) => void
+  onAssignRoute: (s: StudentRow) => void
+  
 }
 
 export function StudentsTable({
@@ -45,6 +47,7 @@ export function StudentsTable({
   onSelect,
   onAddStudent,
   onRemove,
+  onAssignRoute,
 }: Props) {
   const [search, setSearch] = useState('')
   const [cls, setCls] = useState('')
@@ -77,7 +80,7 @@ export function StudentsTable({
           r.code.toLowerCase().includes(q) ||
           r.parentName.toLowerCase().includes(q)) &&
         (!cls || r.className === cls) &&
-        (!route || r.routeCode === route) &&
+        (!route || (route === 'NONE' ? r.routeCode === '—' : r.routeCode === route)) &&
         (!face || r.faceStatus === face),
     )
   }, [rows, search, cls, route, face])
@@ -128,6 +131,7 @@ export function StudentsTable({
 
           <select className={selectCls} value={route} onChange={(e) => change(() => setRoute(e.target.value))}>
             <option value="">Tất cả tuyến</option>
+            <option value="NONE">Chưa gán tuyến</option>
             {routes.map((r) => <option key={r} value={r}>Tuyến {r}</option>)}
           </select>
 
@@ -200,7 +204,13 @@ export function StudentsTable({
                       <span className="text-xs font-semibold text-rose-500">Chưa có phụ huynh</span>
                     )}
                   </td>
-                  <td className="py-3 text-slate-700">{s.routeCode}</td>
+                  <td className="py-3 text-slate-700">
+                    {s.routeCode === '—' ? (
+                      <span className="text-xs font-semibold text-amber-600">Chưa gán tuyến</span>
+                    ) : (
+                      s.routeCode
+                    )}
+                  </td>
                   <td className="py-3 text-slate-700">{s.pickupStop}</td>
                   <td className="py-3">
                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badge.cls}`}>
@@ -267,6 +277,18 @@ export function StudentsTable({
             className="fixed z-50 w-52 rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
             style={{ top: menu.top, left: Math.max(8, menu.left) }}
           >
+            <button
+              type="button"
+              onClick={() => {
+                const s = menu.student
+                setMenu(null)
+                onAssignRoute(s)
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <Bus className="size-4 text-slate-400" />
+              Gán tuyến &amp; điểm đón
+            </button>
             <button
               type="button"
               onClick={() => {

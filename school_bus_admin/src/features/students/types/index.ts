@@ -51,3 +51,26 @@ export interface NewStudentInput {
 }
 
 export type RemoveResult = 'DELETED' | 'DEACTIVATED'
+
+export interface RouteOption {
+  routeId: string
+  code: string
+  name: string
+  studentCount: number
+  stops: { stopId: string; name: string; order: number }[]
+}
+
+export interface CurrentAssignment {
+  routeId: string
+  pickupStopId: string
+  dropoffStopId: string
+  effectiveFrom: string
+}
+
+export interface AssignRouteInput {
+  studentId: string
+  routeId: string
+  pickupStopId: string
+  dropoffStopId: string
+  effectiveFrom: string // YYYY-MM-DD
+}

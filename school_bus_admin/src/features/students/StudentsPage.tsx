@@ -8,6 +8,8 @@ import { AddStudentDialog } from './components/AddStudentDialog'
 import { RemoveStudentDialog } from './components/RemoveStudentDialog'
 import type { StudentRow } from './types'
 
+import { AssignRouteDialog } from './components/AssignRouteDialog'
+
 type Tab = 'LIST' | 'REQUESTS'
 
 export function StudentsPage() {
@@ -18,6 +20,7 @@ export function StudentsPage() {
 
   const [showAdd, setShowAdd] = useState(false)
   const [removeFor, setRemoveFor] = useState<StudentRow | null>(null)
+  const [assignRouteFor, setAssignRouteFor] = useState<StudentRow | null>(null)
 
   const selected = data.find((s) => s.id === selectedId) ?? null
   const registered = data.filter((s) => s.faceStatus === 'REGISTERED').length
@@ -65,6 +68,7 @@ export function StudentsPage() {
             onSelect={(s) => setSelectedId(s.id)}
             onAddStudent={() => setShowAdd(true)}
             onRemove={setRemoveFor}
+            onAssignRoute={setAssignRouteFor}
           />
           <FaceRegisterPanel student={selected} />
         </div>
@@ -73,6 +77,10 @@ export function StudentsPage() {
       )}
       {showAdd && <AddStudentDialog onClose={() => setShowAdd(false)} />}
       {removeFor && <RemoveStudentDialog student={removeFor} onClose={() => setRemoveFor(null)} />}
+      {assignRouteFor && (
+        <AssignRouteDialog student={assignRouteFor} onClose={() => setAssignRouteFor(null)} />
+      )}
+        
     </div>
   )
 }
