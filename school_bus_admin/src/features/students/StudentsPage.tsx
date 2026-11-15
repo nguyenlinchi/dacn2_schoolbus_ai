@@ -4,6 +4,10 @@ import { StudentsTable } from './components/StudentsTable'
 import { FaceRegisterPanel } from './components/FaceRegisterPanel'
 import { ChildRequestsPanel } from './components/ChildRequestsPanel'
 
+import { AddStudentDialog } from './components/AddStudentDialog'
+import { RemoveStudentDialog } from './components/RemoveStudentDialog'
+import type { StudentRow } from './types'
+
 type Tab = 'LIST' | 'REQUESTS'
 
 export function StudentsPage() {
@@ -11,6 +15,9 @@ export function StudentsPage() {
   const { data: requests = [] } = useChildRequests()
   const [tab, setTab] = useState<Tab>('LIST')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const [showAdd, setShowAdd] = useState(false)
+  const [removeFor, setRemoveFor] = useState<StudentRow | null>(null)
 
   const selected = data.find((s) => s.id === selectedId) ?? null
   const registered = data.filter((s) => s.faceStatus === 'REGISTERED').length
@@ -56,12 +63,16 @@ export function StudentsPage() {
             isLoading={isLoading}
             selectedId={selectedId}
             onSelect={(s) => setSelectedId(s.id)}
+            onAddStudent={() => setShowAdd(true)}
+            onRemove={setRemoveFor}
           />
           <FaceRegisterPanel student={selected} />
         </div>
       ) : (
         <ChildRequestsPanel students={data} />
       )}
+      {showAdd && <AddStudentDialog onClose={() => setShowAdd(false)} />}
+      {removeFor && <RemoveStudentDialog student={removeFor} onClose={() => setRemoveFor(null)} />}
     </div>
   )
 }

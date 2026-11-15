@@ -28,3 +28,26 @@ export interface ChildRequest {
   parentPhone: string
   parentEmail: string
 }
+
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER'
+export type Relationship = 'FATHER' | 'MOTHER' | 'GUARDIAN' | 'OTHER'
+
+export interface ParentOption {
+  parentId: string
+  name: string
+  phone: string
+  email: string
+  childrenCount: number
+}
+
+export interface NewStudentInput {
+  fullName: string
+  dateOfBirth: string // YYYY-MM-DD
+  gender: Gender | ''
+  className: string
+  studentCode: string // để trống = tự sinh
+  parentId: string // để trống = chưa gán phụ huynh
+  relationship: Relationship
+}
+
+export type RemoveResult = 'DELETED' | 'DEACTIVATED'

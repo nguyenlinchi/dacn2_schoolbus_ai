@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { MoreVertical, Plus, Search } from 'lucide-react'
+import { useEffect, useMemo, useState, type MouseEvent } from 'react'
+import { MoreVertical, Plus, Search, Trash2 } from 'lucide-react'
 import type { FaceStatus, StudentRow } from '../types'
 
 const PAGE_SIZE = 8
@@ -34,14 +34,30 @@ interface Props {
   isLoading: boolean
   selectedId: string | null
   onSelect: (s: StudentRow) => void
+  onAddStudent: () => void
+  onRemove: (s: StudentRow) => void
 }
 
-export function StudentsTable({ rows, isLoading, selectedId, onSelect }: Props) {
+export function StudentsTable({
+  rows,
+  isLoading,
+  selectedId,
+  onSelect,
+  onAddStudent,
+  onRemove,
+}: Props) {
   const [search, setSearch] = useState('')
   const [cls, setCls] = useState('')
   const [route, setRoute] = useState('')
   const [face, setFace] = useState<FaceStatus | ''>('')
   const [page, setPage] = useState(1)
+  const [menu, setMenu] = useState<{ student: StudentRow; top: number; left: number } | null>(null)
+
+  // Có học sinh mới lên đầu danh sách thì tự về trang 1 để thấy ngay
+  const newestId = rows[0]?.id
+  useEffect(() => {
+    setPage(1)
+  }, [newestId])
 
   const classes = useMemo(
     () => [...new Set(rows.map((r) => r.className))].filter(Boolean).sort(),
@@ -75,6 +91,16 @@ export function StudentsTable({ rows, isLoading, selectedId, onSelect }: Props) 
   const change = (fn: () => void) => {
     fn()
     setPage(1)
+  }
+
+  const openMenu = (e: MouseEvent<HTMLButtonElement>, student: StudentRow) => {
+    e.stopPropagation()
+    const r = e.currentTarget.getBoundingClientRect()
+    setMenu(
+      menu?.student.id === student.id
+        ? null
+        : { student, top: r.bottom + 4, left: r.right - 208 },
+    )
   }
 
   return (
@@ -118,7 +144,7 @@ export function StudentsTable({ rows, isLoading, selectedId, onSelect }: Props) 
 
           <button
             type="button"
-            onClick={() => alert('TODO: mở form thêm học sinh')}
+            onClick={onAddStudent}
             className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 text-sm font-semibold text-white hover:bg-blue-700"
           >
             <Plus className="size-4" /> Thêm học sinh
@@ -135,7 +161,7 @@ export function StudentsTable({ rows, isLoading, selectedId, onSelect }: Props) 
               <th className="py-2 font-medium">Tuyến</th>
               <th className="py-2 font-medium">Điểm đón</th>
               <th className="py-2 font-medium">Khuôn mặt</th>
-              <th className="w-8" />
+              <th className="w-10" />
             </tr>
           </thead>
           <tbody>
@@ -181,8 +207,15 @@ export function StudentsTable({ rows, isLoading, selectedId, onSelect }: Props) 
                       {badge.text}
                     </span>
                   </td>
-                  <td className="py-3 text-slate-400">
-                    <MoreVertical className="size-4" />
+                  <td className="py-3">
+                    <button
+                      type="button"
+                      title="Thao tác"
+                      onClick={(e) => openMenu(e, s)}
+                      className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                    >
+                      <MoreVertical className="size-4" />
+                    </button>
                   </td>
                 </tr>
               )
@@ -225,6 +258,30 @@ export function StudentsTable({ rows, isLoading, selectedId, onSelect }: Props) 
           </button>
         </div>
       </div>
+
+      {/* Menu ba chấm: vị trí fixed để không bị bảng cắt */}
+      {menu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} />
+          <div
+            className="fixed z-50 w-52 rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
+            style={{ top: menu.top, left: Math.max(8, menu.left) }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                const s = menu.student
+                setMenu(null)
+                onRemove(s)
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+            >
+              <Trash2 className="size-4" />
+              Xóa học sinh
+            </button>
+          </div>
+        </>
+      )}
     </section>
   )
 }

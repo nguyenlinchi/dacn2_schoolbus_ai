@@ -1,5 +1,12 @@
 import { supabase } from '@/lib/supabase'
-import type { ChildRequest, FaceStatus, StudentRow } from '../types'
+import type {
+  ChildRequest,
+  FaceStatus,
+  NewStudentInput,
+  ParentOption,
+  RemoveResult,
+  StudentRow,
+} from '../types'
 
 const REQUIRED_ANGLES = 3 // nhìn thẳng, quay trái, quay phải
 
@@ -40,6 +47,28 @@ async function fetchLinks(): Promise<LinkRow[]> {
   return (data ?? []) as LinkRow[]
 }
 
+const ERROR_TEXT: Record<string, string> = {
+  NOT_ALLOWED: 'Bạn không có quyền thực hiện thao tác này',
+  INVALID_NAME: 'Họ tên không hợp lệ (không được để trống, tối đa 150 ký tự)',
+  INVALID_DOB: 'Ngày sinh không hợp lệ',
+  INVALID_GENDER: 'Giới tính không hợp lệ',
+  INVALID_CLASS: 'Tên lớp quá dài (tối đa 50 ký tự)',
+  INVALID_CODE: 'Mã học sinh chỉ gồm chữ, số và dấu . _ - (tối đa 30 ký tự)',
+  CODE_EXISTS: 'Mã học sinh này đã tồn tại',
+  DUPLICATE_STUDENT:
+    'Đã có học sinh trùng tên và ngày sinh (có thể đang chờ duyệt ở tab "Yêu cầu chờ duyệt")',
+  PARENT_NOT_FOUND: 'Không tìm thấy phụ huynh đã chọn',
+  INVALID_RELATIONSHIP: 'Quan hệ với học sinh không hợp lệ',
+  STUDENT_NOT_FOUND: 'Không tìm thấy học sinh (có thể đã bị xóa)',
+}
+
+function friendlyError(message: string): string {
+  for (const [code, text] of Object.entries(ERROR_TEXT)) {
+    if (message.includes(code)) return text
+  }
+  return message
+}
+
 export const studentService = {
   /** Danh sách học sinh đang hoạt động. Phụ huynh chỉ tính khi đã được duyệt (APPROVED). */
   async getStudents(): Promise<StudentRow[]> {
@@ -47,8 +76,9 @@ export const studentService = {
       supabase
         .from('students')
         .select('student_id, student_code, full_name, class_name, avatar_url')
-        .eq('status', 'ACTIVE') // ẩn em chưa duyệt / đã ngừng
-        .order('full_name'),
+        .eq('status', 'ACTIVE')
+        .order('created_at', { ascending: false }) // mới tạo lên đầu
+        .order('full_name'), // cùng thời điểm thì xếp theo tên
 
       supabase
         .from('student_routes')
@@ -152,5 +182,48 @@ export const studentService = {
       p_note: p.note ?? null,
     })
     if (error) throw new Error(error.message)
+  },
+  /** Danh sách phụ huynh để chọn khi thêm học sinh. */
+  async getParents(): Promise<ParentOption[]> {
+    const { data, error } = await supabase.rpc('admin_list_parents')
+    if (error) throw new Error(friendlyError(error.message))
+    return (
+      (data ?? []) as {
+        parent_id: string
+        full_name: string | null
+        phone: string | null
+        email: string | null
+        children_count: number
+      }[]
+    ).map((p) => ({
+      parentId: p.parent_id,
+      name: p.full_name ?? '—',
+      phone: p.phone ?? '',
+      email: p.email ?? '',
+      childrenCount: p.children_count,
+    }))
+  },
+
+  async createStudent(i: NewStudentInput): Promise<string> {
+    const { data, error } = await supabase.rpc('admin_create_student', {
+      p_full_name: i.fullName.trim(),
+      p_date_of_birth: i.dateOfBirth,
+      p_gender: i.gender || null,
+      p_class_name: i.className.trim() || null,
+      p_student_code: i.studentCode.trim() || null,
+      p_parent_id: i.parentId || null,
+      p_relationship: i.relationship,
+    })
+    if (error) throw new Error(friendlyError(error.message))
+    return data as string
+  },
+
+  /** DELETED = xóa hẳn (chưa có lịch sử); DEACTIVATED = ngừng hoạt động (giữ lịch sử). */
+  async removeStudent(studentId: string): Promise<RemoveResult> {
+    const { data, error } = await supabase.rpc('admin_remove_student', {
+      p_student_id: studentId,
+    })
+    if (error) throw new Error(friendlyError(error.message))
+    return data as RemoveResult
   },
 }

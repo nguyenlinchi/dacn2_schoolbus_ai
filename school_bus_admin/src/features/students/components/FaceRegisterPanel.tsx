@@ -74,16 +74,18 @@ export function FaceRegisterPanel({ student }: { student: StudentRow | null }) {
             <button
               type="button"
               onClick={() => alert('TODO: trích vector bằng MobileFaceNet')}
-              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#2563EB] text-sm font-semibold text-white hover:bg-blue-700"
+              className="inline-flex h-10 flex-[1.4] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-[#2563EB] px-3 text-[13px] font-semibold text-white hover:bg-blue-700"
             >
-              <ScanFace className="size-4" /> Chụp &amp; trích vector
+              <ScanFace className="size-4 shrink-0" />
+              <span>Chụp và trích vector</span>
             </button>
             <button
               type="button"
               onClick={() => alert('TODO: tải ảnh lên')}
-              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 px-3 text-[13px] font-semibold text-slate-700 hover:bg-slate-50"
             >
-              <Upload className="size-4" /> Tải ảnh lên
+              <Upload className="size-4 shrink-0" />
+              <span>Tải ảnh lên</span>
             </button>
           </div>
         </>
